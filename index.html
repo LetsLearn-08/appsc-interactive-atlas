@@ -1,0 +1,277 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APPSC Interactive Atlas</title>
+
+  <link rel="stylesheet"
+    href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">
+
+  <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f2ed;
+      color: #263238;
+    }
+
+    header {
+      background: #173d35;
+      color: white;
+      padding: 15px 20px;
+    }
+
+    header h2 { margin: 0 0 5px; }
+    header p { margin: 0; font-size: 13px; opacity: .85; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 245px 1fr 285px;
+      height: calc(100vh - 72px);
+      min-height: 500px;
+    }
+
+    aside {
+      background: white;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .left { border-right: 1px solid #ddd; }
+    .right { border-left: 1px solid #ddd; }
+
+    #map { width: 100%; height: 100%; }
+
+    h3 {
+      font-size: 15px;
+      margin: 8px 0 13px;
+    }
+
+    .category {
+      display: block;
+      width: 100%;
+      padding: 11px;
+      margin-bottom: 7px;
+      text-align: left;
+      border: 1px solid #e2e5df;
+      border-radius: 8px;
+      background: #fafbf8;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .category:hover, .category.active {
+      background: #e3eee6;
+      border-color: #47836b;
+      color: #174b38;
+      font-weight: bold;
+    }
+
+    .info {
+      background: #f5f7f3;
+      padding: 12px;
+      border-radius: 9px;
+      margin-top: 12px;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .muted { color: #68756e; font-size: 12px; }
+
+    #coordinates {
+      padding: 10px;
+      background: #eef3ef;
+      border-radius: 8px;
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .map-button {
+      padding: 9px 12px;
+      margin: 4px 2px 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 7px;
+      background: white;
+      cursor: pointer;
+    }
+
+    @media(max-width: 850px) {
+      .layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      aside { border: 0; }
+      #map { height: 60vh; min-height: 400px; }
+      .left { order: 2; }
+      #map { order: 1; }
+      .right { order: 3; }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h2>🗺️ APPSC Interactive Atlas</h2>
+  <p>Explore Andhra Pradesh • Geography • History • Culture • Environment</p>
+</header>
+
+<div class="layout">
+
+  <aside class="left">
+    <h3>Explore by Subject</h3>
+
+    <button class="category active" data-topic="Geography">🌍 Geography</button>
+    <button class="category" data-topic="Rivers">🌊 Rivers & Dams</button>
+    <button class="category" data-topic="History">🏛️ History</button>
+    <button class="category" data-topic="Agriculture">🌾 Agriculture</button>
+    <button class="category" data-topic="Culture">🎨 Art & Culture</button>
+    <button class="category" data-topic="UNESCO">🌐 UNESCO Sites</button>
+    <button class="category" data-topic="Tiger Reserves">🐅 Tiger Reserves</button>
+    <button class="category" data-topic="Wildlife">🌳 Wildlife & Sanctuaries</button>
+    <button class="category" data-topic="Archaeology">🏺 Archaeology</button>
+    <button class="category" data-topic="Temples">🛕 Temples & Monuments</button>
+    <button class="category" data-topic="Tribes">👥 Tribes & Communities</button>
+    <button class="category" data-topic="Economy">🏭 Minerals & Industries</button>
+
+    <div class="info">
+      <b>How to use</b>
+      <p>Zoom into Andhra Pradesh, explore the map and select a subject.</p>
+      <p class="muted">Verified subject-specific geographic datasets will be added in subsequent development stages.</p>
+    </div>
+  </aside>
+
+  <main style="position:relative; min-width:0;">
+    <div id="map"></div>
+  </main>
+
+  <aside class="right">
+    <h3 id="panelTitle">Geography Explorer</h3>
+
+    <button class="map-button" onclick="resetMap()">⌂ AP Home</button>
+    <button class="map-button" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+
+    <div class="info" id="topicInfo">
+      <b>Andhra Pradesh</b>
+      <p>Explore the geographical position of Andhra Pradesh.</p>
+      <p>Zoom in to discover locations and geographical features.</p>
+    </div>
+
+    <h3 style="margin-top:22px;">Selected map location</h3>
+    <div id="coordinates">
+      Click anywhere on the map to see its coordinates.
+    </div>
+
+    <p class="muted" style="margin-top:20px;">
+      Map data © OpenStreetMap contributors.
+      Subject-specific facts and boundaries will be added from verified sources.
+    </p>
+  </aside>
+
+</div>
+
+<script>
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {
+        osm: {
+          type: 'raster',
+          tiles: [
+            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+          ],
+          tileSize: 256,
+          attribution: '© OpenStreetMap contributors'
+        }
+      },
+      layers: [
+        {
+          id: 'osm',
+          type: 'raster',
+          source: 'osm'
+        }
+      ]
+    },
+    center: [80.0, 16.0],
+    zoom: 6.2,
+    minZoom: 4,
+    maxZoom: 17
+  });
+
+  map.addControl(new maplibregl.NavigationControl(), 'top-right');
+  map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
+
+  map.on('click', function(e) {
+    const lat = e.lngLat.lat.toFixed(5);
+    const lng = e.lngLat.lng.toFixed(5);
+
+    document.getElementById('coordinates').innerHTML =
+      '<b>Latitude:</b> ' + lat +
+      '<br><b>Longitude:</b> ' + lng;
+  });
+
+  const descriptions = {
+    Geography: 'Explore physical geography, Eastern Ghats, coastal plains, elevation and terrain.',
+    Rivers: 'Explore river systems, tributaries, basins, dams, reservoirs and irrigation projects.',
+    History: 'Explore ancient, medieval and modern history, dynasties, capitals, battles and historical places.',
+    Agriculture: 'Explore crops, soils, irrigation, rainfall and agro-climatic regions.',
+    Culture: 'Explore traditional arts, dance, music, crafts, festivals and architecture.',
+    UNESCO: 'Explore UNESCO World Heritage properties and tentative-list locations. Their official status will be separately verified.',
+    'Tiger Reserves': 'Explore notified tiger reserves, their boundaries, forests, wildlife and rivers.',
+    Wildlife: 'Explore national parks, wildlife sanctuaries, biodiversity and important species.',
+    Archaeology: 'Explore excavations, ancient settlements, inscriptions and archaeological discoveries.',
+    Temples: 'Explore temples, monuments, architectural styles and historical connections.',
+    Tribes: 'Explore tribal regions, communities, traditions and cultural geography.',
+    Economy: 'Explore minerals, industries, ports, trade and economic geography.'
+  };
+
+  document.querySelectorAll('.category').forEach(button => {
+    button.addEventListener('click', function() {
+      document.querySelectorAll('.category').forEach(b =>
+        b.classList.remove('active')
+      );
+
+      this.classList.add('active');
+
+      const topic = this.dataset.topic;
+
+      document.getElementById('panelTitle').textContent =
+        topic + ' Explorer';
+
+      document.getElementById('topicInfo').innerHTML =
+        '<b>' + topic + '</b><p>' + descriptions[topic] +
+        '</p><p class="muted">This category is selected. Its verified geographic data and clickable records are the next development task.</p>';
+    });
+  });
+
+  function resetMap() {
+    map.flyTo({
+      center: [80.0, 16.0],
+      zoom: 6.2,
+      essential: true
+    });
+  }
+
+  function toggleFullscreen() {
+    const element = document.querySelector('main');
+    if (!document.fullscreenElement) {
+      element.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  }
+
+  map.on('load', function() {
+    console.log('APPSC Atlas map loaded successfully');
+  });
+</script>
+
+</body>
+</html>
